@@ -1,0 +1,13 @@
+{
+  "name": "tree-example",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "make": "elm make --output=static/js/main.js src/Main.elm",
+    "serve": "hugo server -D -E --disableFastRender",
+    "watch": "chokidar \"**/*.elm\" -c \"yarn make\""
+  },
+  "devDependencies": {
+    "chokidar-cli": "^1.2.2"
+  }
+}

@@ -1,0 +1,22 @@
+{{ define "main" }}
+<main class="section">
+  <div class="container is-fluid">
+    <h1 class="title">Elm</h1>
+    <h1 class="subtitle">Tree-like example</h1>
+    <hr>
+    <div class="box">
+      <div id="elm"></div>
+    </div>
+  </div>
+</main>
+{{ end }}
+
+{{ define "page-script" }}
+<script>
+  var data = JSON.parse('{{ .Site.Data.sample | jsonify }}');
+  var app = Elm.Main.init({
+    node: document.getElementById('elm'),
+    flags: data
+  });
+</script>
+{{ end }}

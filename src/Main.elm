@@ -27,6 +27,7 @@ main =
 
 type alias Model =
     { tree : Tree
+    , visiblePaths : List String
     }
 
 
@@ -50,7 +51,18 @@ type alias Frags =
 
 init : Frags -> ( Model, Cmd Msg )
 init frags =
-    ( { tree = initTree frags.files }
+    let
+        tree =
+            initTree frags.files
+
+        visiblePaths =
+            tree
+                |> List.filter (\entry -> not <| List.isEmpty entry.children)
+                |> List.map .name
+    in
+    ( { tree = tree
+      , visiblePaths = visiblePaths
+      }
     , Cmd.none
     )
 
@@ -65,7 +77,7 @@ initTree files =
             let
                 segments =
                     separatePaths path
-                
+
                 getDepth name =
                     name |> (separatePaths >> List.length)
 
@@ -78,18 +90,33 @@ initTree files =
                     }
 
                 maybeEntry =
-                    tree |> indexWhere
-                        (\{ name } ->
-                            (getDepth name) == (getDepth path) - 1
-                        )
+                    tree
+                        |> indexWhere
+                            (\{ name } ->
+                                String.startsWith name path
+                                    && getDepth name
+                                    == getDepth path
+                                    - 1
+                            )
 
                 indexedTree =
                     Array.fromList tree
             in
             case maybeEntry of
                 Just ( index, knownPath ) ->
-                    tree
-                
+                    let
+                        newParent =
+                            { knownPath
+                                | children = path :: knownPath.children
+                            }
+
+                        updatedTree =
+                            indexedTree
+                                |> Array.set index newParent
+                                |> Array.toList
+                    in
+                    newEntry :: updatedTree
+
                 Nothing ->
                     newEntry :: tree
     in
@@ -98,11 +125,13 @@ initTree files =
         |> List.foldl foldEntries []
 
 
+
 -- UPDATE
 
 
 type Msg
     = NoOp
+    | ChangeVisibility Entry
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -110,6 +139,25 @@ update msg model =
     case msg of
         NoOp ->
             ( model, Cmd.none )
+
+        ChangeVisibility entry ->
+            let
+                isVisible =
+                    List.member entry.name model.visiblePaths
+
+                newVisiblePaths =
+                    if isVisible then
+                        model.visiblePaths
+                            |> List.filter (\path -> not (List.member path model.visiblePaths))
+
+                    else
+                        model.visiblePaths
+            in
+            ( { model
+                | visiblePaths = newVisiblePaths
+              }
+            , Cmd.none
+            )
 
 
 
@@ -123,11 +171,17 @@ view model =
 
 viewTreeView : Model -> Html Msg
 viewTreeView model =
+    let
+        isExpanded entry =
+            List.member entry.name model.visiblePaths
+    in
     table
         [ class "table is-fullwidth is-hoverable" ]
         [ tbody
             []
-            ( model.tree |> List.map (viewCells True) )
+            (model.tree
+                |> List.map (\entry -> viewCells (isExpanded entry) entry)
+            )
         ]
 
 
@@ -137,17 +191,20 @@ viewCells visible entry =
         fontClass =
             if List.isEmpty entry.children then
                 ""
-            
+
             else if visible then
                 "fa-angle-right"
-            
+
             else
                 "fa-angle-down"
-        
+
         tableCell =
-            td [] <|
+            td
+                [ attribute "data-children" <| String.join "," entry.children ]
                 [ a
-                    [ class "link" ]
+                    [ class "link"
+                    , onClick (ChangeVisibility entry)
+                    ]
                     [ span
                         [ class "icon" ]
                         [ i [ class <| "fas " ++ fontClass ] []
@@ -158,7 +215,7 @@ viewCells visible entry =
                     ]
                 ]
     in
-    tr [] [ tableCell ]
+    tr [ hidden <| not visible ] [ tableCell ]
 
 
 

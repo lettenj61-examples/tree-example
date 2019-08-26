@@ -7,7 +7,8 @@
     "serve": "hugo server -D -E --disableFastRender",
     "watch": "chokidar \"**/*.elm\" -c \"yarn make\""
   },
-  "devDependencies": {
-    "chokidar-cli": "^1.2.2"
+  "devDependencies": {},
+  "dependencies": {
+    "chokidar-cli": "^2.0.0"
   }
 }

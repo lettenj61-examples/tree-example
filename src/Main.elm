@@ -5,6 +5,7 @@ import Browser
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (..)
+import Set exposing (Set)
 
 
 
@@ -54,10 +55,16 @@ init frags =
     let
         tree =
             initTree frags.files
+        
+        minDepth =
+            List.map .depth tree
+                |> List.minimum
+                |> Maybe.withDefault 0
 
         visiblePaths =
             tree
-                |> List.filter (\entry -> not <| List.isEmpty entry.children)
+                |> List.filter (\{ depth } -> depth == 5)
+                |> List.filter (not << List.isEmpty << .children)
                 |> List.map .name
     in
     ( { tree = tree
@@ -143,12 +150,13 @@ update msg model =
         ChangeVisibility entry ->
             let
                 isVisible =
-                    List.member entry.name model.visiblePaths
+                    True
 
                 newVisiblePaths =
                     if isVisible then
-                        model.visiblePaths
-                            |> List.filter (\path -> not (List.member path model.visiblePaths))
+                        model.tree
+                            |> List.map .name
+                            |> List.filter (\path -> not (List.member path model.visiblePaths) && path /= entry.name)
 
                     else
                         model.visiblePaths
@@ -176,10 +184,13 @@ viewTreeView model =
             List.member entry.name model.visiblePaths
     in
     table
-        [ class "table is-fullwidth is-hoverable" ]
+        [ class "table is-fullwidth is-hoverable"
+        , attribute "data-visible" <| String.join "," model.visiblePaths
+        ]
         [ tbody
             []
             (model.tree
+                |> List.sortBy .name
                 |> List.map (\entry -> viewCells (isExpanded entry) entry)
             )
         ]
@@ -190,13 +201,16 @@ viewCells visible entry =
     let
         fontClass =
             if List.isEmpty entry.children then
-                ""
+                "fa-file"
 
             else if visible then
-                "fa-angle-right"
+                "fa-folder"
 
             else
                 "fa-angle-down"
+        
+        padding =
+            (String.fromInt <| entry.depth - 5) ++ "em"
 
         tableCell =
             td
@@ -204,6 +218,7 @@ viewCells visible entry =
                 [ a
                     [ class "link"
                     , onClick (ChangeVisibility entry)
+                    , style "padding-left" padding
                     ]
                     [ span
                         [ class "icon" ]
